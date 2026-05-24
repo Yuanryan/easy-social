@@ -120,7 +120,7 @@ def submit_form(browser, form):
     browser.execute_script("arguments[0].requestSubmit ? arguments[0].requestSubmit() : arguments[0].submit();", form)
 
 
-def _peek_captcha_answer(browser) -> str:
+def _peek_captcha_answer(browser) -> str | None:
     return browser.execute_script(
         """
         var xhr = new XMLHttpRequest();
