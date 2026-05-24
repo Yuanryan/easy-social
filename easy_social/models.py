@@ -207,7 +207,7 @@ class PollOption(db.Model):
     __table_args__ = (
         UniqueConstraint("poll_id", "display_order", name="uq_poll_option_order"),
         CheckConstraint(
-            "display_order >= 0 AND display_order < 4",
+            f"display_order >= 0 AND display_order < {Poll.MAX_OPTIONS}",
             name="ck_poll_option_order_range",
         ),
     )
