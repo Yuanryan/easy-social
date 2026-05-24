@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from easy_social import create_app
 from easy_social.extensions import db
 
