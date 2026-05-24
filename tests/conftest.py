@@ -34,10 +34,12 @@ def client(app):
 
 
 def _fetch_captcha_answer(client) -> str:
-    client.get("/auth/captcha.png")
+    response = client.get("/auth/captcha.png")
+    assert response.status_code == 200
     with client.session_transaction() as sess:
-        return sess[CAPTCHA_SESSION_KEY]["_test_plain"]
-
+        answer = sess[CAPTCHA_SESSION_KEY].get("_test_plain")
+    assert answer
+    return answer
 
 def register(client, username: str, email: str | None = None, password: str = "password"):
     captcha_answer = _fetch_captcha_answer(client)
