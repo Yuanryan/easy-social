@@ -139,8 +139,9 @@ def register_via_ui(browser, live_server: str, username: str):
     WebDriverWait(browser, 10).until(
         EC.presence_of_element_located((By.ID, "captcha-image"))
     )
-    captcha_answer = _peek_captcha_answer(browser)
-    assert captcha_answer, "captcha answer was not issued before form fill"
+    captcha_answer = WebDriverWait(browser, 10).until(
+        lambda drv: _peek_captcha_answer(drv)
+    )
     set_field_value(browser, form.find_element(By.NAME, "username"), username)
     set_field_value(browser, form.find_element(By.NAME, "email"), f"{username}@example.com")
     set_field_value(browser, form.find_element(By.NAME, "password"), "password")
