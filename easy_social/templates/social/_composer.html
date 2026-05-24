@@ -1,4 +1,4 @@
-<form method="post" action="{{ url_for('social.create_post') }}" enctype="multipart/form-data" class="composer">
+<form method="post" action="{{ url_for('social.create_post') }}" enctype="multipart/form-data" class="composer" data-composer>
   <textarea name="body" rows="4" maxlength="2000" placeholder="What is happening?"></textarea>
   <div class="composer-preview" data-media-preview hidden>
     <div class="composer-preview-frame" data-media-preview-frame></div>
@@ -7,11 +7,23 @@
       <button type="button" class="link-button" data-media-preview-clear>Remove</button>
     </div>
   </div>
+  <div class="poll-composer" data-poll-composer hidden>
+    <input type="hidden" name="has_poll" value="1" data-poll-flag disabled>
+    <ol class="poll-composer-options" data-poll-options>
+      <li><input type="text" name="poll_option" maxlength="80" placeholder="Option 1"></li>
+      <li><input type="text" name="poll_option" maxlength="80" placeholder="Option 2"></li>
+    </ol>
+    <div class="poll-composer-actions">
+      <button type="button" class="link-button" data-poll-add>+ Add option</button>
+      <button type="button" class="link-button" data-poll-remove>Remove poll</button>
+    </div>
+  </div>
   <div class="composer-actions">
     <label class="file-picker">
       <span>Attach image/video</span>
       <input type="file" name="media" accept="image/*,video/*" data-media-input>
     </label>
+    <button type="button" class="link-button" data-poll-toggle>+ Poll</button>
     <button type="submit">Post</button>
   </div>
 </form>

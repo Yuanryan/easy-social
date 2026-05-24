@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from .extensions import db
 from .media import save_media
 from .models import Comment, Post, User, followers
+from .polls import attach_poll_to_post, build_poll_from_form
 
 bp = Blueprint("social", __name__)
 
@@ -16,6 +17,8 @@ def _post_query():
     return Post.query.options(
         joinedload(Post.author),
         joinedload(Post.repost_of).joinedload(Post.author),
+        joinedload(Post.poll),
+        joinedload(Post.repost_of).joinedload(Post.poll),
     )
 
 
@@ -89,6 +92,18 @@ def explore():
 @login_required
 def create_post():
     body = request.form.get("body", "").strip()
+    has_poll = request.form.get("has_poll") == "1"
+
+    poll_option_texts: list[str] = []
+    if has_poll:
+        poll_option_texts, poll_errors = build_poll_from_form(request.form)
+        if poll_errors:
+            for message in poll_errors:
+                flash(message, "error")
+            return redirect(request.referrer or url_for("social.feed"))
+        if not body:
+            flash("Poll posts need a question in the post body.", "error")
+            return redirect(request.referrer or url_for("social.feed"))
 
     try:
         media_filename, media_type = save_media(request.files.get("media"))
@@ -107,6 +122,8 @@ def create_post():
         author=current_user,
     )
     db.session.add(post)
+    if has_poll:
+        attach_poll_to_post(post, poll_option_texts)
     db.session.commit()
     return redirect(url_for("social.feed"))
 

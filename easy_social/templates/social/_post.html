@@ -19,6 +19,42 @@
       <video class="post-media" controls src="{{ media_url(content.media_filename) }}"></video>
     {% endif %}
   {% endif %}
+  {% if content.poll %}
+    {% set poll = content.poll %}
+    {% set results = poll.results(viewer_id=current_user.id) %}
+    <div
+      class="poll"
+      data-poll
+      data-poll-id="{{ poll.id }}"
+      data-poll-vote-url="{{ url_for('polls.vote', poll_id=poll.id) }}"
+      data-poll-results-url="{{ url_for('polls.results', poll_id=poll.id) }}"
+      data-poll-closed="{{ '1' if results.closed else '0' }}"
+    >
+      <ul class="poll-options" data-poll-option-list>
+        {% for option in results.options %}
+          <li
+            class="poll-option {% if results.viewer_option_id == option.id %}poll-option-chosen{% endif %}"
+            data-poll-option-id="{{ option.id }}"
+          >
+            <button
+              type="button"
+              class="poll-option-button"
+              data-poll-vote
+              {% if results.closed %}disabled{% endif %}
+            >
+              <span class="poll-option-bar" data-poll-bar style="width: {{ (option.ratio * 100) | round(1) }}%"></span>
+              <span class="poll-option-text">{{ option.text }}</span>
+              <span class="poll-option-ratio" data-poll-ratio>{{ (option.ratio * 100) | round(1) }}%</span>
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="poll-meta">
+        <span data-poll-total>{{ results.total }}</span> votes
+        {% if results.closed %} · closed{% endif %}
+      </p>
+    </div>
+  {% endif %}
   <footer class="post-actions">
     <a href="{{ url_for('social.post_detail', post_id=content.id) }}">{{ comment_counts[content.id] if comment_counts is defined and content.id in comment_counts else content.comments.count() }} comments</a>
     {% if content.author_id != current_user.id %}

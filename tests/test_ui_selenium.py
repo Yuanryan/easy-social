@@ -10,7 +10,7 @@ from werkzeug.serving import make_server
 
 from easy_social import create_app
 from easy_social.extensions import db
-from easy_social.models import Comment, Post, User
+from easy_social.models import Comment, Poll, PollOption, PollVote, Post, User
 
 selenium = pytest.importorskip("selenium")
 
@@ -84,6 +84,9 @@ def browser():
 @pytest.fixture(autouse=True)
 def clean_database(ui_app):
     with ui_app.app_context():
+        db.session.query(PollVote).delete()
+        db.session.query(PollOption).delete()
+        db.session.query(Poll).delete()
         db.session.query(Comment).delete()
         db.session.query(Post).delete()
         db.session.query(User).delete()
@@ -273,6 +276,50 @@ def test_following_user_adds_their_posts_to_feed(browser, live_server):
     wait_for_text(browser, "@bob")
     submit_form(browser, browser.find_element(By.CSS_SELECTOR, ".user-row form"))
     wait_for_text(browser, "Unfollow")
+
+
+@pytest.mark.ui
+def test_user_can_create_poll_and_others_can_vote(browser, live_server):
+    register_via_ui(browser, live_server, "pollster")
+    composer = browser.find_element(By.CSS_SELECTOR, "form.composer")
+    set_field_value(browser, composer.find_element(By.NAME, "body"), "Pick a fruit")
+    composer.find_element(By.CSS_SELECTOR, "[data-poll-toggle]").click()
+
+    option_inputs = composer.find_elements(By.CSS_SELECTOR, "[data-poll-options] input")
+    set_field_value(browser, option_inputs[0], "Apple")
+    set_field_value(browser, option_inputs[1], "Banana")
+    composer.find_element(By.CSS_SELECTOR, "[data-poll-add]").click()
+    option_inputs = composer.find_elements(By.CSS_SELECTOR, "[data-poll-options] input")
+    set_field_value(browser, option_inputs[2], "Cherry")
+    submit_form(browser, composer)
+    wait_for_text(browser, "Pick a fruit")
+
+    logout_via_ui(browser)
+    register_via_ui(browser, live_server, "voter")
+    WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-poll]"))
+    )
+
+    poll = browser.find_element(By.CSS_SELECTOR, "[data-poll]")
+    options = poll.find_elements(By.CSS_SELECTOR, "[data-poll-option-id]")
+    apple = options[0]
+    apple.find_element(By.CSS_SELECTOR, "[data-poll-vote]").click()
+
+    WebDriverWait(browser, 10).until(
+        lambda _: "100.0%" in apple.find_element(By.CSS_SELECTOR, "[data-poll-ratio]").text
+    )
+    total_el = poll.find_element(By.CSS_SELECTOR, "[data-poll-total]")
+    assert total_el.text == "1"
+    assert "poll-option-chosen" in apple.get_attribute("class")
+
+    banana = options[1]
+    banana.find_element(By.CSS_SELECTOR, "[data-poll-vote]").click()
+    WebDriverWait(browser, 10).until(
+        lambda _: "100.0%" in banana.find_element(By.CSS_SELECTOR, "[data-poll-ratio]").text
+    )
+    assert total_el.text == "1"
+    assert "poll-option-chosen" in banana.get_attribute("class")
+    assert "poll-option-chosen" not in apple.get_attribute("class")
 
     browser.get(f"{live_server}/")
     wait_for_text(browser, "Bob browser update")
