@@ -168,7 +168,7 @@ class Poll(db.Model):
     def results(self, viewer_id: int | None = None) -> dict:
         counts = self.vote_counts()
         total = sum(counts.values())
-        viewer_vote = self.user_vote(viewer_id) if viewer_id else None
+        viewer_vote = self.user_vote(viewer_id) if viewer_id is not None else None
         return {
             "poll_id": self.id,
             "total": total,
