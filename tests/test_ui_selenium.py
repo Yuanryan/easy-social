@@ -120,14 +120,31 @@ def submit_form(browser, form):
     browser.execute_script("arguments[0].requestSubmit ? arguments[0].requestSubmit() : arguments[0].submit();", form)
 
 
+def _peek_captcha_answer(browser) -> str:
+    return browser.execute_script(
+        """
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/auth/test/captcha-peek', false);
+        xhr.send(null);
+        return JSON.parse(xhr.responseText).answer;
+        """
+    )
+
+
 def register_via_ui(browser, live_server: str, username: str):
     browser.get(f"{live_server}/auth/register")
     form = WebDriverWait(browser, 10).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "form.form-stack"))
     )
+    WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.ID, "captcha-image"))
+    )
+    captcha_answer = _peek_captcha_answer(browser)
+    assert captcha_answer, "captcha answer was not issued before form fill"
     set_field_value(browser, form.find_element(By.NAME, "username"), username)
     set_field_value(browser, form.find_element(By.NAME, "email"), f"{username}@example.com")
     set_field_value(browser, form.find_element(By.NAME, "password"), "password")
+    set_field_value(browser, form.find_element(By.NAME, "captcha"), captcha_answer)
     submit_form(browser, form)
     wait_for_feed(browser)
 
@@ -188,6 +205,56 @@ def test_user_can_register_create_post_and_comment(browser, live_server):
     set_field_value(browser, comment_form.find_element(By.NAME, "body"), "First UI comment")
     submit_form(browser, comment_form)
     wait_for_text(browser, "First UI comment")
+
+
+@pytest.mark.ui
+def test_register_page_renders_captcha_image(browser, live_server):
+    browser.get(f"{live_server}/auth/register")
+    img = WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.ID, "captcha-image"))
+    )
+    src = img.get_attribute("src") or ""
+    assert "/auth/captcha.png" in src
+
+    captcha_field = browser.find_element(By.NAME, "captcha")
+    assert captcha_field.get_attribute("maxlength") == "5"
+    assert captcha_field.get_attribute("required") is not None
+
+    answer = _peek_captcha_answer(browser)
+    assert answer is not None
+    assert len(answer) == 5
+
+
+@pytest.mark.ui
+def test_register_with_wrong_captcha_shows_error(browser, live_server):
+    browser.get(f"{live_server}/auth/register")
+    form = WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "form.form-stack"))
+    )
+    WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.ID, "captcha-image"))
+    )
+    set_field_value(browser, form.find_element(By.NAME, "username"), "wrongcaptchaperson")
+    set_field_value(
+        browser, form.find_element(By.NAME, "email"), "wrongcaptchaperson@example.com"
+    )
+    set_field_value(browser, form.find_element(By.NAME, "password"), "password")
+    set_field_value(browser, form.find_element(By.NAME, "captcha"), "ZZZZZ")
+    submit_form(browser, form)
+
+    WebDriverWait(browser, 5).until(
+        EC.text_to_be_present_in_element((By.CSS_SELECTOR, ".flash.error"), "Captcha")
+    )
+    # Form is still on /auth/register — registration was rejected.
+    assert "/auth/register" in browser.current_url
+
+
+@pytest.mark.ui
+def test_register_with_correct_captcha_logs_user_in(browser, live_server):
+    register_via_ui(browser, live_server, "captchapasser")
+    body_text = browser.find_element(By.TAG_NAME, "body").text
+    assert "Feed" in body_text
+    assert "captchapasser" in body_text
 
 
 @pytest.mark.ui
