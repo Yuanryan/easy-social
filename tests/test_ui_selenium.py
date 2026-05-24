@@ -221,8 +221,7 @@ def test_register_page_renders_captcha_image(browser, live_server):
     assert captcha_field.get_attribute("maxlength") == "5"
     assert captcha_field.get_attribute("required") is not None
 
-    answer = _peek_captcha_answer(browser)
-    assert answer is not None
+    answer = WebDriverWait(browser, 10).until(lambda drv: _peek_captcha_answer(drv))
     assert len(answer) == 5
 
 
