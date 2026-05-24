@@ -17,7 +17,7 @@
         <input name="password" type="password" autocomplete="new-password" required>
       </label>
       <div class="captcha-field">
-        <span class="captcha-label">Verification code</span>
+        <label class="captcha-label" for="captcha">Verification code</label>
         <div class="captcha-row">
           <img
             src="{{ url_for('auth.captcha_image') }}"
