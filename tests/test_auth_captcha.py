@@ -198,9 +198,8 @@ def test_each_captcha_request_rotates_the_answer(client):
     # First answer is overwritten by the second issue call.
     with client.session_transaction() as sess:
         assert sess[captcha.SESSION_KEY]["_test_plain"] == second
-    # The probability of two random 5-char draws colliding is ~1/60M;
-    # we still tolerate it but log if it happens (assert anyway: very unlikely).
-    assert first != second or len(first) == captcha.LENGTH
+    assert len(first) == captcha.LENGTH
+    assert len(second) == captcha.LENGTH
 
 
 def test_captcha_peek_returns_404_outside_testing(client, app):
