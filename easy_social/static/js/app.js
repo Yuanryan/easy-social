@@ -185,8 +185,16 @@
           credentials: "same-origin",
         })
           .then(function (response) {
+            if (response.redirected) {
+              window.location.href = response.url;
+              return null;
+            }
             if (response.status === 401) {
               window.location.href = "/auth/login";
+              return null;
+            }
+            const contentType = response.headers.get("content-type") || "";
+            if (!contentType.includes("application/json")) {
               return null;
             }
             return response.json();
