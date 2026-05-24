@@ -99,10 +99,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         return db.session.get(User, int(user_id))
 
     from .auth import bp as auth_bp
+    from .polls import bp as polls_bp
     from .social import bp as social_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(social_bp)
+    app.register_blueprint(polls_bp)
     app.jinja_env.globals["media_url"] = media_url
 
     @app.cli.command("init-db")

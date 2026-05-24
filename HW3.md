@@ -90,7 +90,6 @@ Branch 名稱：`captcha`
 | 建議將驗證碼長度改為 6 碼以提升強度 | （視 Copilot 實際建議調整）說明：5 碼配合扭曲與雜訊已足以阻擋一般 OCR bot，且使用者體驗較佳，故保留 5 碼。 |
 | 建議移除 `session` 中的 expires_at 並改用 `flask.session.permanent_session_lifetime` | 不採納並說明錯誤：`permanent_session_lifetime` 控制整個 session 的存活時間，與「單一驗證碼 5 分鐘有效」是不同的語意；若依此建議，會導致使用者整個 session 都因 5 分鐘逾期而被登出。 |
 
-合併狀態：✅ 已合併至 `main`
 
 ### 2.6 Demo 影片
 
@@ -108,7 +107,7 @@ Branch 名稱：`captcha`
 
 ### 3.1 Issue 描述
 
-**Issue 連結：** （請自行填入建立的 Issue 連結）
+**Issue 連結：** [實作投票貼文](https://github.com/Yuanryan/easy-social/issues/2)
 
 #### 需求背景
 為提升使用者參與度與平台黏著度，產品經理黛比規劃新增「投票貼文（Poll Post）」功能。使用者可建立含有 2 至 4 個選項的投票，由社群參與後即時顯示比例，類似於 X (Twitter) 的 Poll 機制。

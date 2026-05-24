@@ -85,6 +85,12 @@ class Post(db.Model):
         "Comment", back_populates="post", cascade="all, delete-orphan", lazy="dynamic"
     )
     repost_of = db.relationship("Post", remote_side=[id], backref="reposts")
+    poll = db.relationship(
+        "Poll",
+        back_populates="post",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -100,6 +106,146 @@ class Post(db.Model):
     @property
     def is_repost(self) -> bool:
         return self.repost_of_id is not None
+
+
+class Poll(db.Model):
+    MIN_OPTIONS = 2
+    MAX_OPTIONS = 4
+    OPTION_MAX_LENGTH = 80
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(
+        db.Integer,
+        db.ForeignKey("post.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    closes_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    post = db.relationship("Post", back_populates="poll")
+    options = db.relationship(
+        "PollOption",
+        back_populates="poll",
+        cascade="all, delete-orphan",
+        order_by="PollOption.display_order",
+    )
+    votes = db.relationship(
+        "PollVote",
+        back_populates="poll",
+        cascade="all, delete-orphan",
+    )
+
+    def is_closed(self) -> bool:
+        if self.closes_at is None:
+            return False
+        closes_at = self.closes_at
+        if closes_at.tzinfo is None:
+            closes_at = closes_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= closes_at
+
+    def total_votes(self) -> int:
+        return len(self.votes)
+
+    def vote_counts(self) -> dict[int, int]:
+        counts = {option.id: 0 for option in self.options}
+        for vote in self.votes:
+            if vote.option_id in counts:
+                counts[vote.option_id] += 1
+        return counts
+
+    def user_vote(self, user_id: int) -> "PollVote | None":
+        for vote in self.votes:
+            if vote.user_id == user_id:
+                return vote
+        return None
+
+    def results(self, viewer_id: int | None = None) -> dict:
+        counts = self.vote_counts()
+        total = sum(counts.values())
+        viewer_vote = self.user_vote(viewer_id) if viewer_id else None
+        return {
+            "poll_id": self.id,
+            "total": total,
+            "closed": self.is_closed(),
+            "viewer_option_id": viewer_vote.option_id if viewer_vote else None,
+            "options": [
+                {
+                    "id": option.id,
+                    "text": option.text,
+                    "votes": counts[option.id],
+                    "ratio": (counts[option.id] / total) if total else 0.0,
+                }
+                for option in self.options
+            ],
+        }
+
+
+class PollOption(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(
+        db.Integer,
+        db.ForeignKey("poll.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    display_order = db.Column(db.SmallInteger, nullable=False)
+    text = db.Column(db.String(Poll.OPTION_MAX_LENGTH), nullable=False)
+
+    poll = db.relationship("Poll", back_populates="options")
+    votes = db.relationship(
+        "PollVote",
+        back_populates="option",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("poll_id", "display_order", name="uq_poll_option_order"),
+        CheckConstraint(
+            "display_order >= 0 AND display_order < 4",
+            name="ck_poll_option_order_range",
+        ),
+    )
+
+
+class PollVote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(
+        db.Integer,
+        db.ForeignKey("poll.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    option_id = db.Column(
+        db.Integer,
+        db.ForeignKey("poll_option.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    poll = db.relationship("Poll", back_populates="votes")
+    option = db.relationship("PollOption", back_populates="votes")
+    user = db.relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("poll_id", "user_id", name="uq_poll_vote_one_per_user"),
+    )
 
 
 class Comment(db.Model):
